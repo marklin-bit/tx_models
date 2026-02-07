@@ -34,7 +34,8 @@ echo "[1/7] 更新系統 & 安裝 Python ${PYTHON_VERSION}..."
 
 # Debian 用系統 Python；Ubuntu 用 deadsnakes PPA。若先前誤加 PPA 在 Debian 上會 404，先移除
 if [ -f /etc/os-release ] && grep -q '^ID=debian' /etc/os-release; then
-    sudo rm -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-*.list 2>/dev/null || true
+    sudo rm -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-bookworm.list
+    sudo rm -f /etc/apt/sources.list.d/*deadsnakes* 2>/dev/null || true
 fi
 
 sudo apt-get update -y
