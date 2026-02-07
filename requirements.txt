@@ -1,0 +1,30 @@
+# TX Models - 台指期當沖交易訊號監控系統
+# Python 3.9+
+
+# Web Framework
+streamlit>=1.28.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Technical Analysis
+ta>=0.10.2
+
+# Machine Learning
+xgboost>=2.0.0
+
+# HTTP Requests
+requests>=2.31.0
+
+# Database
+# SQLite is built-in, no extra package needed
+
+# Charts
+plotly>=5.18.0
+
+# LINE Bot Notification
+line-bot-sdk>=3.5.0
+
+# Utilities
+python-dateutil>=2.8.2

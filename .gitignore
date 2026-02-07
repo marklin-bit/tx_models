@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# Database (每台機器自己的資料)
+database/tx_data.db
+database/scheduler_state.json
+
+# Temp files
+*.xlsx
+~$*
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Deployment scripts (local only)
+*.bat
+
+# Keep database directory
+!database/.gitkeep
