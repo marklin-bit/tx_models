@@ -32,7 +32,7 @@ echo ""
 # ─── Step 1: 系統更新 & 安裝 Python + Git ───
 echo "[1/7] 更新系統 & 安裝 Python ${PYTHON_VERSION}..."
 sudo apt-get update -y
-sudo apt-get install -y software-properties-common git
+sudo apt-get install -y software-properties-common git python3-launchpadlib
 sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt-get update -y
 sudo apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip curl
