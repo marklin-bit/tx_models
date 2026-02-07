@@ -1,6 +1,6 @@
 # TX Models - 操作說明
 
-本說明只保留兩件事：**之後改程式該怎麼做**、**換 LINE 金鑰該怎麼做**。  
+本說明包含三件事：**之後改程式該怎麼做**、**換 LINE 金鑰該怎麼做**、**VM 外部 IP 變動了怎麼辦**。  
 每一步都寫詳細，並提供一鍵作法。
 
 ---
@@ -22,7 +22,7 @@ cd ~/tx_models && git fetch origin && git reset --hard origin/main && chmod +x u
 ```
 
 - 約 10～30 秒後服務會自動重啟。
-- 重新整理網頁 **http://35.212.199.216:8501** 即可看到新版本。
+- 重新整理網頁即可（網址見下方「三、VM 外部 IP 變動了」一鍵查詢）。
 
 ### 若一鍵更新失敗時的手動步驟
 
@@ -54,8 +54,7 @@ cd ~/tx_models && git fetch origin && git reset --hard origin/main && chmod +x u
 ### 相關網址
 
 - **GitHub 專案**：<https://github.com/marklin-bit/tx_models>  
-- **GCP VM 列表**：<https://console.cloud.google.com/compute/instances>  
-- **網頁入口**：<http://35.212.199.216:8501>
+- **GCP VM 列表**：<https://console.cloud.google.com/compute/instances>
 
 ---
 
@@ -153,6 +152,46 @@ chmod +x test_line.sh
 
 ---
 
+## 三、VM 外部 IP 變動了怎麼辦
+
+GCP VM 預設使用**臨時外部 IP**，VM 重開或 GCP 回收後，IP 可能改變，舊網址會打不開。  
+只要改用**目前 IP** 開網頁即可，不需改程式或防火牆。
+
+### 一鍵查詢目前 IP（在 VM 的 SSH 裡執行）
+
+```bash
+cd ~/tx_models && chmod +x get_ip.sh && ./get_ip.sh
+```
+
+- 會顯示此 VM **目前的外部 IP** 與完整網址 **http://IP:8501**。  
+- 用瀏覽器開顯示的網址即可。
+
+### 若 IP 已變動，該怎麼做
+
+1. **連到 VM**（用 GCP Console，不依賴舊 IP）  
+   - 開啟：<https://console.cloud.google.com/compute/instances>  
+   - 找到你的 VM，點右邊 **「SSH」** 開啟終端機。
+
+2. **查目前 IP**  
+   ```bash
+   cd ~/tx_models
+   ./get_ip.sh
+   ```  
+   - 畫面上會印出 **http://新IP:8501**，複製到瀏覽器開啟即可。
+
+3. **（選用）之後想用固定 IP**  
+   - 到 GCP：<https://console.cloud.google.com/networking/addresses/list>  
+   - 點 **「保留靜態外部 IP 位址」** → 名稱自訂、區域選與 VM 相同 → 建立。  
+   - 到 **Compute Engine → VM 執行個體** → 點你的 VM → **編輯** → **網路** → **外部 IP** 改為剛保留的靜態 IP → 儲存。  
+   - 之後 IP 就不會變，可一直用同一個網址。
+
+### 相關網址
+
+- **GCP VM 列表（用來連 SSH）**：<https://console.cloud.google.com/compute/instances>  
+- **保留靜態 IP**：<https://console.cloud.google.com/networking/addresses/list>
+
+---
+
 ## 快速對照
 
 | 要做的事       | 一鍵作法 |
@@ -160,3 +199,4 @@ chmod +x test_line.sh
 | 更新程式       | `cd ~/tx_models && git fetch origin && git reset --hard origin/main && chmod +x update_vm.sh && ./update_vm.sh` |
 | 換 LINE 金鑰   | `cd ~/tx_models && chmod +x setup_line_env.sh && ./setup_line_env.sh` |
 | 測試 LINE      | `cd ~/tx_models && chmod +x test_line.sh && ./test_line.sh` |
+| 查目前網址 (IP 變動時) | `cd ~/tx_models && chmod +x get_ip.sh && ./get_ip.sh` |
