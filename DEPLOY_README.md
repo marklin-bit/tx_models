@@ -61,3 +61,21 @@ cd ~/tx_models
 3. 點 **「Change repository visibility」** → 選 **Private** → 確認
 
 改回私人後，VM 之後要用 **Token** 才能執行 `update_vm.sh` 拉新程式碼；若你暫時不會改回私人，可以維持公開即可。
+
+---
+
+## 網頁打不開時（診斷步驟）
+
+1. **在 VM 的 SSH 裡執行診斷腳本：**
+   ```bash
+   cd ~/tx_models
+   chmod +x check_web.sh
+   ./check_web.sh
+   ```
+   腳本會檢查：服務是否在跑、8501 是否有監聽、本機能否連線、VM 對外 IP、防火牆提醒。
+
+2. **常見原因與處理：**
+   - **服務未運行**：執行 `sudo systemctl start tx-signals`，再執行 `sudo systemctl status tx-signals` 確認。
+   - **GCP 防火牆**：規則要選「輸入 (Ingress)」、通訊埠 **tcp:8501**、來源 **0.0.0.0/0**。若目標選「指定標籤」，VM 的網路標籤要與規則一致，否則改為「網路上的所有執行個體」。
+   - **只聽 127.0.0.1**：專案已用 `.streamlit/config.toml` 設定 `address = "0.0.0.0"`，重新部署後應會聽 0.0.0.0。
+   - **用錯 IP**：用診斷腳本顯示的「對外 IP」開 `http://該IP:8501`（例如 35.212.199.216）。
