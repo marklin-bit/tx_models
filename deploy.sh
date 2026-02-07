@@ -31,11 +31,24 @@ echo ""
 
 # ─── Step 1: 系統更新 & 安裝 Python + Git ───
 echo "[1/7] 更新系統 & 安裝 Python ${PYTHON_VERSION}..."
+
+# Debian 用系統 Python；Ubuntu 用 deadsnakes PPA。若先前誤加 PPA 在 Debian 上會 404，先移除
+if [ -f /etc/os-release ] && grep -q '^ID=debian' /etc/os-release; then
+    sudo rm -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-*.list 2>/dev/null || true
+fi
+
 sudo apt-get update -y
-sudo apt-get install -y software-properties-common git python3-launchpadlib
-sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt-get update -y
-sudo apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip curl
+
+if [ -f /etc/os-release ] && grep -q '^ID=debian' /etc/os-release; then
+    echo "  偵測到 Debian，使用系統套件庫..."
+    sudo apt-get install -y git python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip curl
+else
+    echo "  偵測到 Ubuntu，使用 deadsnakes PPA..."
+    sudo apt-get install -y software-properties-common git python3-launchpadlib
+    sudo add-apt-repository -y ppa:deadsnakes/ppa
+    sudo apt-get update -y
+    sudo apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip curl
+fi
 
 echo "  Python: $(python${PYTHON_VERSION} --version)"
 echo "  Git:    $(git --version)"
