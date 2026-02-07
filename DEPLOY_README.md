@@ -1,90 +1,63 @@
-# TX Models - VM 部署與更新說明
+# TX Models - VM 部署說明（新手版）
 
-## GitHub 儲存庫
+## 第一步：開放 VM 的網頁連線（防火牆）
 
-- **私人 repo**: https://github.com/marklin-bit/tx_models
-- **分支**: `main`
+1. 開啟瀏覽器，進入 **Google Cloud Console**：https://console.cloud.google.com/
+2. 左側選單點 **「VPC 網路」** → **「防火牆」**
+3. 點上方 **「建立防火牆規則」**
+4. 照下面填寫：
+   - **名稱**：`allow-streamlit`
+   - **流量方向**：選 **輸入 (Ingress)**
+   - **目標**：選 **網路中的所有執行個體**
+   - **來源 IPv4 範圍**：填 `0.0.0.0/0`
+   - **通訊協定和通訊埠**：勾選 **指定的通訊協定和通訊埠**，再勾選 **TCP**，通訊埠填 `8501`
+5. 點 **「建立」**
 
 ---
 
-## 一、VM 首次部署（從 GitHub 克隆）
+## 第二步：連到 VM 並一鍵部署
 
-1. GCP Console → 你的 VM → 點 **SSH** 開啟瀏覽器終端機
-
-2. 在 SSH 中執行（請把 `YOUR_GITHUB_TOKEN` 換成你的 Personal Access Token，或使用 SSH key）：
+1. 在 GCP Console 左側選 **「Compute Engine」** → **「VM 執行個體」**
+2. 找到你的 VM（外部 IP：35.212.199.216），點右邊的 **「SSH」** 按鈕  
+   → 會開一個新視窗，裡面是黑色的終端機（命令列）
+3. 在終端機裡 **整段複製下面這一大段**，貼上去，按 **Enter**：
 
 ```bash
-# 安裝 git（若尚未安裝）
-sudo apt-get update && sudo apt-get install -y git
-
-# 克隆專案（私人 repo 需授權）
-# 方式 A：用 HTTPS + Token（在網址中填入 token）
-git clone https://YOUR_GITHUB_TOKEN@github.com/marklin-bit/tx_models.git ~/tx_models
-
-# 方式 B：若已設定 SSH key，可用
-# git clone git@github.com:marklin-bit/tx_models.git ~/tx_models
-
-cd ~/tx_models
-chmod +x deploy.sh
-./deploy.sh
+sudo apt-get update -y && sudo apt-get install -y git && \
+git clone https://github.com/marklin-bit/tx_models.git ~/tx_models && \
+cd ~/tx_models && chmod +x deploy.sh && ./deploy.sh
 ```
 
-3. 建立 GitHub Personal Access Token（若尚未有）：
-   - 開啟 https://github.com/settings/tokens
-   - Generate new token (classic)
-   - 勾選 `repo` 權限
-   - 複製 token，在 clone 時替換 `YOUR_GITHUB_TOKEN`
+4. 等待跑完（約 3～5 分鐘），最後會出現「部署完成」
+5. 再貼下面這行，按 **Enter** 啟動服務：
 
-4. 部署完成後啟動服務：
 ```bash
 sudo systemctl start tx-signals
 ```
 
-5. 開啟 GCP 防火牆 **TCP:8501**（若尚未開放）
-
-6. 瀏覽器開啟：**http://35.212.199.216:8501**
+6. 等約 10 秒，用瀏覽器開啟：**http://35.212.199.216:8501**
 
 ---
 
-## 二、之後程式更新流程
+## 完成後
 
-### 在你電腦（本機）
+- 網頁能正常開啟就代表部署成功。
+- 之後若程式有更新，在 VM 的 SSH 裡執行下面兩行即可更新並重啟：
 
-1. 請我修改程式 → 我改完後會 **commit + push** 到 GitHub
-2. 或你自己 push：
-   ```bash
-   git add -A
-   git commit -m "說明這次改了什麼"
-   git push origin main
-   ```
-
-### 在 VM 上
-
-1. SSH 連線到 VM
-2. 執行一鍵更新：
-   ```bash
-   cd ~/tx_models
-   ./update_vm.sh
-   ```
-3. 約 10 秒後服務會自動重啟，重新整理網頁即可看到最新版
+```bash
+cd ~/tx_models
+./update_vm.sh
+```
 
 ---
 
-## 三、常用指令（在 VM SSH 中）
+## 若想改回私人 repo（選用）
 
-| 操作       | 指令 |
-|------------|------|
-| 啟動服務   | `sudo systemctl start tx-signals` |
-| 停止服務   | `sudo systemctl stop tx-signals` |
-| 重啟服務   | `sudo systemctl restart tx-signals` |
-| 查看狀態   | `sudo systemctl status tx-signals` |
-| 即時看 LOG | `sudo journalctl -u tx-signals -f` |
-| 一鍵更新   | `cd ~/tx_models && ./update_vm.sh` |
+目前專案是 **公開**，方便 VM 直接 clone，不用 Token。  
+若你之後想改回私人：
 
----
+1. 開啟：https://github.com/marklin-bit/tx_models/settings
+2. 捲到最下面 **「Danger Zone」**
+3. 點 **「Change repository visibility」** → 選 **Private** → 確認
 
-## 四、注意事項
-
-- **資料庫** `database/tx_data.db` 不會放進 Git，每台機器各自保留
-- VM 首次部署後若沒有 db，排程器會在 06:00 / 14:00 自動抓資料建立
-- 若需要把本機的資料庫複製到 VM，請手動用 SCP 或 GCP 上傳檔案到 `~/tx_models/database/`
+改回私人後，VM 之後要用 **Token** 才能執行 `update_vm.sh` 拉新程式碼；若你暫時不會改回私人，可以維持公開即可。
