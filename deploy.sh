@@ -30,35 +30,32 @@ echo "════════════════════════�
 echo ""
 
 # ─── Step 1: 系統更新 & 安裝 Python + Git ───
-echo "[1/7] 更新系統 & 安裝 Python ${PYTHON_VERSION}..."
+echo "[1/7] 更新系統 & 安裝 Python..."
 
-# Debian 用系統 Python；Ubuntu 用 deadsnakes PPA。偵測 ID=debian 或 ID="debian"
-IS_DEBIAN=false
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    [ "$ID" = "debian" ] && IS_DEBIAN=true
-fi
-
-if [ "$IS_DEBIAN" = "true" ]; then
-    sudo rm -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-bookworm.list
-    sudo rm -f /etc/apt/sources.list.d/*deadsnakes* 2>/dev/null || true
-fi
+# 一律移除 deadsnakes PPA（僅支援 Ubuntu，在 Debian 會 404）
+sudo rm -f /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-bookworm.list
+sudo rm -f /etc/apt/sources.list.d/*deadsnakes* 2>/dev/null || true
 
 sudo apt-get update -y
 
-if [ "$IS_DEBIAN" = "true" ]; then
-    echo "  偵測到 Debian，使用系統套件庫..."
-    sudo apt-get install -y git python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip curl
-else
-    echo "  偵測到 Ubuntu，使用 deadsnakes PPA..."
-    sudo apt-get install -y software-properties-common git python3-launchpadlib
-    sudo add-apt-repository -y ppa:deadsnakes/ppa
-    sudo apt-get update -y
-    sudo apt-get install -y python${PYTHON_VERSION} python${PYTHON_VERSION}-venv python${PYTHON_VERSION}-dev python3-pip curl
+# 只用系統套件庫，不加 PPA。先試 3.11，失敗再試 3.10 / 3
+sudo apt-get install -y git python3-pip curl
+PYTHON_CMD=""
+set +e
+for pv in 3.11 3.10 3; do
+    if sudo apt-get install -y python${pv} python${pv}-venv python${pv}-dev >/dev/null 2>&1; then
+        PYTHON_CMD="python${pv}"
+        break
+    fi
+done
+set -e
+if [ -z "$PYTHON_CMD" ]; then
+    echo "  錯誤: 無法安裝 Python 3.11/3.10/3，請檢查 apt 來源"
+    exit 1
 fi
 
-echo "  Python: $(python${PYTHON_VERSION} --version)"
-echo "  Git:    $(git --version)"
+echo "  使用: $(${PYTHON_CMD} --version)"
+echo "  Git:  $(git --version)"
 
 # ─── Step 2: 取得/更新專案程式碼 ───
 echo ""
@@ -96,7 +93,7 @@ echo ""
 echo "[3/7] 建立 Python 虛擬環境..."
 
 if [ ! -d "${APP_DIR}/venv" ]; then
-    python${PYTHON_VERSION} -m venv venv
+    ${PYTHON_CMD} -m venv venv
 fi
 source venv/bin/activate
 
