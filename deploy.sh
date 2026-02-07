@@ -147,6 +147,7 @@ Type=simple
 User=$(whoami)
 Group=$(id -gn)
 WorkingDirectory=${APP_DIR}
+EnvironmentFile=-/etc/tx_signals/env
 Environment="PATH=${APP_DIR}/venv/bin:/usr/local/bin:/usr/bin:/bin"
 Environment="HOME=${HOME}"
 ExecStart=${APP_DIR}/venv/bin/streamlit run app.py
@@ -163,6 +164,23 @@ SERVICEEOF
 sudo systemctl daemon-reload
 sudo systemctl enable ${SERVICE_NAME}
 
+# LINE 金鑰：建立 /etc/tx_signals/env（若不存在則從範例複製）
+sudo mkdir -p /etc/tx_signals
+if [ ! -f /etc/tx_signals/env ]; then
+    if [ -f "${APP_DIR}/env.example" ]; then
+        sudo cp "${APP_DIR}/env.example" /etc/tx_signals/env
+        sudo chmod 600 /etc/tx_signals/env
+        echo "  已建立 /etc/tx_signals/env（請編輯填入 LINE 金鑰後重啟服務）"
+    else
+        sudo touch /etc/tx_signals/env
+        sudo chmod 600 /etc/tx_signals/env
+        echo "LINE_CHANNEL_ID=" | sudo tee /etc/tx_signals/env > /dev/null
+        echo "LINE_CHANNEL_SECRET=" | sudo tee -a /etc/tx_signals/env > /dev/null
+        echo "LINE_ENABLED=true" | sudo tee -a /etc/tx_signals/env > /dev/null
+        echo "  已建立 /etc/tx_signals/env（請編輯填入 LINE 金鑰後重啟服務）"
+    fi
+fi
+
 # 開放 port
 sudo iptables -C INPUT -p tcp --dport 8501 -j ACCEPT 2>/dev/null || \
     sudo iptables -I INPUT -p tcp --dport 8501 -j ACCEPT
@@ -178,6 +196,10 @@ echo "  LOG:   sudo journalctl -u ${SERVICE_NAME} -f"
 echo "  更新:  cd ~/tx_models && ./update_vm.sh"
 echo ""
 echo "  網頁:  http://35.212.199.216:8501"
+echo ""
+echo "  LINE 通知：編輯 /etc/tx_signals/env 填入金鑰後重啟"
+echo "    sudo nano /etc/tx_signals/env"
+echo "    sudo systemctl restart ${SERVICE_NAME}"
 echo ""
 echo "  ⚠ 確保 GCP 防火牆已開放 TCP:8501"
 echo "═══════════════════════════════════════════════════"

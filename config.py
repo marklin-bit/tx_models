@@ -85,12 +85,16 @@ INDICATOR_PARAMS = {
 }
 
 # =============================================================================
-# LINE Bot 設定（建議用環境變數，避免寫進程式碼）
+# LINE Bot 設定（只讀環境變數，金鑰不寫進程式碼）
+# 在 VM 上建立 /etc/tx_signals/env 並設定 LINE_CHANNEL_ID、LINE_CHANNEL_SECRET
 # =============================================================================
+_line_id = os.environ.get("LINE_CHANNEL_ID", "").strip()
+_line_secret = os.environ.get("LINE_CHANNEL_SECRET", "").strip()
+_line_enabled = os.environ.get("LINE_ENABLED", "true").lower() in ("1", "true", "yes")
 LINE_CONFIG = {
-    "channel_id": os.environ.get("LINE_CHANNEL_ID", "2009071761"),
-    "channel_secret": os.environ.get("LINE_CHANNEL_SECRET", "08dcb989245efea962fb870961cca995"),
-    "enabled": os.environ.get("LINE_ENABLED", "true").lower() in ("1", "true", "yes"),
+    "channel_id": _line_id,
+    "channel_secret": _line_secret,
+    "enabled": _line_enabled and bool(_line_id and _line_secret),
 }
 
 # =============================================================================

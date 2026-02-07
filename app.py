@@ -556,7 +556,7 @@ def load_components():
     
     # LINE 通知
     line_notifier = None
-    if LINE_CONFIG.get('enabled'):
+    if LINE_CONFIG.get('enabled') and LINE_CONFIG.get('channel_id') and LINE_CONFIG.get('channel_secret'):
         line_notifier = LineNotifier(
             channel_id=LINE_CONFIG['channel_id'],
             channel_secret=LINE_CONFIG['channel_secret'],

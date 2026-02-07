@@ -79,38 +79,35 @@ chmod +x update_vm.sh
 
 **建議作法：**
 
-1. **換一組金鑰（建議）：**  
-   - 到 [LINE Developers](https://developers.line.biz/) → 你的 Channel → 重新發行 **Channel secret**。  
-   - 舊 secret 會失效，只有新 secret 能用，等於作廢舊金鑰。
-
-2. **在 VM 用環境變數（不要再把金鑰寫進程式）：**  
-   程式已改為優先讀取環境變數，沒設才用預設值。在 VM 上可這樣設（替換成你自己的值）：
+1. **在 VM 用環境變數（已接好）：**  
+   程式已改為**只讀環境變數**，金鑰不再寫在程式碼。部署時會自動建立 `/etc/tx_signals/env`，服務會讀取該檔。  
+   **在 VM 上做一次設定（替換成你的金鑰）：**
 
    ```bash
-   sudo mkdir -p /etc/tx_signals
-   echo 'LINE_CHANNEL_ID=你的Channel_ID' | sudo tee -a /etc/tx_signals/env
-   echo 'LINE_CHANNEL_SECRET=你的Channel_Secret' | sudo tee -a /etc/tx_signals/env
-   sudo chmod 600 /etc/tx_signals/env
+   sudo nano /etc/tx_signals/env
    ```
 
-   再讓服務讀取這個檔：  
-   編輯服務檔 `sudo nano /etc/systemd/system/tx-signals.service`，在 `[Service]` 區塊加上一行：
+   內容設成（把 `你的Channel_ID`、`你的Channel_Secret` 換成實際值）：
 
-   ```ini
-   EnvironmentFile=/etc/tx_signals/env
+   ```
+   LINE_CHANNEL_ID=你的Channel_ID
+   LINE_CHANNEL_SECRET=你的Channel_Secret
+   LINE_ENABLED=true
    ```
 
-   存檔後執行：
+   存檔（Ctrl+O、Enter、Ctrl+X）後重啟服務：
 
    ```bash
-   sudo systemctl daemon-reload
    sudo systemctl restart tx-signals
    ```
 
    之後金鑰只存在 VM 的 `/etc/tx_signals/env`，不會跟著 Git 到 GitHub。
 
+2. **換一組金鑰（若曾外洩建議做）：**  
+   到 [LINE Developers](https://developers.line.biz/) → 你的 Channel → 重新發行 **Channel secret**，再把新 secret 寫進上面的 `/etc/tx_signals/env`。
+
 3. **若不再用 LINE 通知：**  
-   在 `config.py` 裡把 `LINE_CONFIG` 的 `enabled` 改為 `False`，或設環境變數 `LINE_ENABLED=false`，就不會發送訊息。
+   在 `/etc/tx_signals/env` 裡設 `LINE_ENABLED=false`，或刪除 `LINE_CHANNEL_SECRET`，重啟服務後就不會發送訊息。
 
 ---
 
