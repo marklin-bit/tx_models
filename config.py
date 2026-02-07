@@ -85,12 +85,12 @@ INDICATOR_PARAMS = {
 }
 
 # =============================================================================
-# LINE Bot 設定
+# LINE Bot 設定（建議用環境變數，避免寫進程式碼）
 # =============================================================================
 LINE_CONFIG = {
-    "channel_id": "2009071761",
-    "channel_secret": "08dcb989245efea962fb870961cca995",
-    "enabled": True,  # 開關
+    "channel_id": os.environ.get("LINE_CHANNEL_ID", "2009071761"),
+    "channel_secret": os.environ.get("LINE_CHANNEL_SECRET", "08dcb989245efea962fb870961cca995"),
+    "enabled": os.environ.get("LINE_ENABLED", "true").lower() in ("1", "true", "yes"),
 }
 
 # =============================================================================

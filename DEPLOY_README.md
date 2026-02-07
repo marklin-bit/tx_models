@@ -42,12 +42,75 @@ sudo systemctl start tx-signals
 ## 完成後
 
 - 網頁能正常開啟就代表部署成功。
-- 之後若程式有更新，在 VM 的 SSH 裡執行下面兩行即可更新並重啟：
+
+---
+
+## 之後如何更新程式（總結）
+
+| 步驟 | 誰做 | 做什麼 |
+|------|------|--------|
+| 1 | 你 | 跟我說要改什麼功能 |
+| 2 | 我 | 改本機程式 → `git commit` → `git push` 到 GitHub |
+| 3 | 你 | 在 VM 的 SSH 裡執行下面兩行 |
+
+**在 VM 上執行（每次程式更新後）：**
 
 ```bash
 cd ~/tx_models
+git pull origin main
+chmod +x update_vm.sh
 ./update_vm.sh
 ```
+
+約 10 秒後服務會自動重啟，重新整理網頁即可看到新版本。
+
+- 若 `git pull` 出現「本地有修改」被擋，可先執行：`git reset --hard origin/main` 再 `./update_vm.sh`。
+- 若只改程式、沒改 `requirements.txt`，`update_vm.sh` 會很快；若有加新套件，會多花一點時間安裝。
+
+---
+
+## LINE API 金鑰與安全性
+
+**是否有風險？**  
+有。Channel ID、Channel Secret 若被別人拿到，對方可以代你的 Bot 發訊息或取得權限。
+
+**目前狀況：**  
+金鑰曾寫在 `config.py` 裡，且專案一度為公開，代表曾暴露在 GitHub 上。建議當作「已外洩」處理。
+
+**建議作法：**
+
+1. **換一組金鑰（建議）：**  
+   - 到 [LINE Developers](https://developers.line.biz/) → 你的 Channel → 重新發行 **Channel secret**。  
+   - 舊 secret 會失效，只有新 secret 能用，等於作廢舊金鑰。
+
+2. **在 VM 用環境變數（不要再把金鑰寫進程式）：**  
+   程式已改為優先讀取環境變數，沒設才用預設值。在 VM 上可這樣設（替換成你自己的值）：
+
+   ```bash
+   sudo mkdir -p /etc/tx_signals
+   echo 'LINE_CHANNEL_ID=你的Channel_ID' | sudo tee -a /etc/tx_signals/env
+   echo 'LINE_CHANNEL_SECRET=你的Channel_Secret' | sudo tee -a /etc/tx_signals/env
+   sudo chmod 600 /etc/tx_signals/env
+   ```
+
+   再讓服務讀取這個檔：  
+   編輯服務檔 `sudo nano /etc/systemd/system/tx-signals.service`，在 `[Service]` 區塊加上一行：
+
+   ```ini
+   EnvironmentFile=/etc/tx_signals/env
+   ```
+
+   存檔後執行：
+
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl restart tx-signals
+   ```
+
+   之後金鑰只存在 VM 的 `/etc/tx_signals/env`，不會跟著 Git 到 GitHub。
+
+3. **若不再用 LINE 通知：**  
+   在 `config.py` 裡把 `LINE_CONFIG` 的 `enabled` 改為 `False`，或設環境變數 `LINE_ENABLED=false`，就不會發送訊息。
 
 ---
 
