@@ -1,0 +1,18 @@
+---
+description: 修改程式後自動 commit 並 push 到 GitHub，讓 VM 一鍵更新能拉到新程式
+alwaysApply: true
+---
+
+# TX_models：修改後要 push
+
+在此專案（TX_models）做完程式或設定的修改後，**要幫使用者完成這兩步**：
+
+1. **加入並 commit**
+   - `git add` 所有有改動的檔案與新增的檔案（例如 `git add .` 或列出具體檔名）
+   - `git commit -m "簡短說明這次改了什麼"`
+
+2. **推到 GitHub**
+   - `git push origin main`
+
+- 這樣 VM 上一鍵更新（`git fetch && git reset --hard origin/main && ./update_vm.sh`）才會拉到新程式。
+- 若本機路徑有編碼問題導致指令失敗，改為在回覆中寫出要使用者在本機終端執行的指令。
