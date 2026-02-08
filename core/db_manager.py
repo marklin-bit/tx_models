@@ -194,34 +194,47 @@ class DBManager:
         conn.close()
         return dates
     
+    def _normalize_date_str(self, d: str) -> str:
+        """將 date 字串正規化為 YYYY-MM-DD，避免 2026-2-6 與 2026-02-06 被當成不同日"""
+        if not d or not isinstance(d, str):
+            return d or ""
+        try:
+            return pd.to_datetime(d.strip()).strftime("%Y-%m-%d")
+        except Exception:
+            return d.strip()[:10] if len(d.strip()) >= 10 else d.strip()
+
     def cleanup_by_trading_days(self, keep_days: int = 5) -> int:
-        """按交易日清理（保留最近N個交易日）"""
+        """按交易日清理（保留最近N個交易日）。依正規化日期判斷，避免 2026-2-6 被誤刪。"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        
-        # 取得所有交易日
-        cursor.execute("SELECT DISTINCT date FROM ohlcv_data ORDER BY date DESC")
-        all_dates = [row[0] for row in cursor.fetchall()]
-        
-        if len(all_dates) <= keep_days:
-            conn.close()
+        cursor.execute("SELECT DISTINCT date FROM ohlcv_data")
+        raw_dates = [row[0] for row in cursor.fetchall()]
+        conn.close()
+        if not raw_dates:
             return 0
-        
-        # 保留最近 keep_days 個交易日
-        dates_to_delete = all_dates[keep_days:]
-        
+        # 正規化為 YYYY-MM-DD，取「不重複交易日」並排序（新→舊）
+        norm_to_raw = {}  # norm -> 任一個 raw（用於顯示）
+        for raw in raw_dates:
+            norm = self._normalize_date_str(raw)
+            if norm not in norm_to_raw:
+                norm_to_raw[norm] = raw
+        unique_norm = sorted(norm_to_raw.keys(), reverse=True)
+        if len(unique_norm) <= keep_days:
+            return 0
+        # 要保留的正規化日期
+        keep_norm = set(unique_norm[:keep_days])
+        # 要刪除的「原始 date」：正規化後不在保留集內的
+        dates_to_delete = [raw for raw in raw_dates if self._normalize_date_str(raw) not in keep_norm]
         if not dates_to_delete:
-            conn.close()
             return 0
-        
+        conn = self._get_connection()
+        cursor = conn.cursor()
         placeholders = ",".join(["?"] * len(dates_to_delete))
         cursor.execute(f"SELECT COUNT(*) FROM ohlcv_data WHERE date IN ({placeholders})", dates_to_delete)
         count = cursor.fetchone()[0]
-        
         cursor.execute(f"DELETE FROM ohlcv_data WHERE date IN ({placeholders})", dates_to_delete)
         conn.commit()
         conn.close()
-        
         return count
     
     # 保留舊方法的兼容性
