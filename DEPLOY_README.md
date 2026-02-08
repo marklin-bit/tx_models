@@ -288,6 +288,18 @@ cd ~/tx_models && ./venv/bin/python repair_features.py
 
 - 完成後重新整理網頁，歷史回顧中 2026-02-06 應會顯示完整日盤。
 
+**若補完後 2026-02-06 仍沒有早盤（08:45~13:40）**
+
+1. 先在 VM 診斷 DB 內該日各時段筆數：  
+   `cd ~/tx_models && ./venv/bin/python check_db_date.py 2026-02-06`  
+   - 若「早盤 08:45~13:40 實際」遠小於 59 筆，代表 DB 裡缺早盤。
+2. 再在 VM 重新跑一次「步驟 2 + 步驟 3」：  
+   確保 `260207_history.csv` 仍在 `~/tx_models/`，然後執行  
+   `./venv/bin/python import_history.py` 與  
+   `./venv/bin/python repair_features.py`。  
+   - 匯入腳本會明確寫入 `date` 欄位（YYYY-MM-DD），並與既有資料合併（同 timestamp 會更新），早盤會補上。
+3. 重新整理網頁。
+
 **補完後資料會存進 DB 嗎？要不要每次重傳？**
 
 - **會存入。** `import_history.py` 與 `repair_features.py` 都是寫入 VM 上的 **`~/tx_models/database/tx_data.db`**，補完的早盤資料會一直留在裡面。

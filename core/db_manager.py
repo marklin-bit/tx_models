@@ -93,8 +93,12 @@ class DBManager:
                 dt_str = row['datetime']
                 if isinstance(dt_str, pd.Timestamp):
                     dt_str = dt_str.strftime('%Y-%m-%d %H:%M:%S')
-                
-                date_str = dt_str[:10] if isinstance(dt_str, str) else str(dt_str)[:10]
+                # 優先使用明確的 date 欄位（與 import_history 一致），否則從 datetime 取前 10 字
+                if 'date' in row and pd.notna(row.get('date')):
+                    d = row['date']
+                    date_str = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d)[:10]
+                else:
+                    date_str = dt_str[:10] if isinstance(dt_str, str) else str(dt_str)[:10]
                 
                 values = [
                     int(row['timestamp']), dt_str, date_str,

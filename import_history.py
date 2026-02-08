@@ -85,6 +85,8 @@ def import_csv(csv_path: str):
     print("[3/5] 計算17個特徵...")
     fc = FeatureCalculator()
     processed = fc.calculate_all(df)
+    # 明確寫入 date 欄位（YYYY-MM-DD），確保 DB 與篩選一致
+    processed['date'] = processed['datetime'].dt.strftime('%Y-%m-%d')
     
     # 確認特徵
     missing = [f for f in FEATURE_NAMES if f not in processed.columns]
