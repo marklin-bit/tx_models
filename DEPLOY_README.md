@@ -253,7 +253,8 @@ sudo systemctl restart tx-signals
 
 ### 用 CSV 補早盤（建議作法）
 
-**前提：** 你有 `260207_history.csv`（或同格式的歷史 CSV，含該日早盤 08:45～13:40 的 5 分 K）。
+**前提：** 你有 `260207_history.csv`（或同格式的歷史 CSV，含該日早盤 08:45～13:40 的 5 分 K）。  
+**注意：** 此 CSV **只到 2026-02-06 早盤**，**夜盤（15:00～隔日 05:00）需由鉅亨網 API 補齊**。匯入後既有 DB 的夜盤會保留（與 CSV 合併）；若該日尚無夜盤，可等排程自動抓或執行 `fill_gaps_and_repair.py` 從 API 補。
 
 **步驟 1：上傳 CSV 到 VM**
 
@@ -276,7 +277,7 @@ cd ~/tx_models && ./venv/bin/python import_history.py
 
 - 若 CSV 不在專案目錄，可指定路徑：`./venv/bin/python import_history.py ~/260207_history.csv`
 - 腳本會：讀取 CSV → 計算 17 個特徵 → **寫入 DB（與既有資料合併，同 timestamp 會更新）** → 保留最近 5 個交易日。  
-  因此 VM 上已有的 2026-02-06 夜盤、2026-02-07 等會保留，**缺的 2026-02-06 早盤會從 CSV 補上**。
+  **CSV 只有早盤**：缺的 2026-02-06 早盤會從 CSV 補上；**2026-02-06 夜盤、2026-02-07 等**若 DB 已有（排程抓的）會保留，若沒有可等排程或執行 `./venv/bin/python fill_gaps_and_repair.py` 從 API 補夜盤。
 
 **步驟 3：重算特徵並寫回**
 
@@ -286,7 +287,8 @@ cd ~/tx_models && ./venv/bin/python import_history.py
 cd ~/tx_models && ./venv/bin/python repair_features.py
 ```
 
-- 完成後重新整理網頁，歷史回顧中 2026-02-06 應會顯示完整日盤。
+- 完成後重新整理網頁，歷史回顧中 2026-02-06 應會顯示完整日盤。  
+- **若 2026-02-06 夜盤或 2026-02-07 仍缺**：CSV 不含夜盤，需由 API 補。可等排程 06:00/14:00 自動抓，或手動執行 `./venv/bin/python fill_gaps_and_repair.py` 從鉅亨網補缺口並重算特徵。
 
 **若補完後 2026-02-06 仍沒有早盤（08:45~13:40）**
 

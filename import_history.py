@@ -122,6 +122,7 @@ def import_csv(csv_path: str):
         print(f"    {date}: {cnt} 筆")
     
     print("\n匯入完成!")
+    print("  說明: 此 CSV 僅含至 2026-02-06 早盤；該日 15:00 後夜盤與 2026-02-07 等需由排程或 fill_gaps_and_repair.py 從鉅亨網 API 補齊。")
 
 
 if __name__ == "__main__":
