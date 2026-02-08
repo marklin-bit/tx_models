@@ -173,8 +173,24 @@ class DBManager:
         return df
     
     def load_by_date(self, target_date: str, include_features: bool = True) -> pd.DataFrame:
-        """載入指定日期資料"""
-        return self.load_ohlcv(start_date=target_date, end_date=target_date, include_features=include_features)
+        """載入指定日期資料（依 datetime 範圍查詢，避免 date 欄位格式不一致漏列）"""
+        conn = self._get_connection()
+        if include_features:
+            feat_select = ", ".join([f'"{f}"' for f in FEATURE_NAMES])
+            cols = f"timestamp, datetime, date, open, high, low, close, volume, {feat_select}"
+        else:
+            cols = "timestamp, datetime, date, open, high, low, close, volume"
+        # 用 datetime 範圍抓當日 00:00 ~ 隔日 00:00 前，不依賴 date 欄位格式（避免 2026-2-6 漏列）
+        start_dt = f"{target_date} 00:00:00"
+        end_dt = f"{target_date} 23:59:59"
+        query = f"""SELECT {cols} FROM ohlcv_data
+                    WHERE datetime >= ? AND datetime <= ?
+                    ORDER BY timestamp ASC"""
+        df = pd.read_sql_query(query, conn, params=[start_dt, end_dt])
+        conn.close()
+        if not df.empty:
+            df['datetime'] = pd.to_datetime(df['datetime'])
+        return df
     
     def get_trading_dates(self) -> List[str]:
         """取得資料庫中所有交易日期"""
