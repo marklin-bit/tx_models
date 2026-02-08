@@ -17,7 +17,7 @@ import threading
 import time
 import json
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import os
 import sys
 
@@ -199,6 +199,25 @@ class DataScheduler:
         combined = combined.sort_values('timestamp').reset_index(drop=True)
         return combined
     
+    def _gap_end_timestamp(self, gap_date: str, gap_session: str, tw) -> int:
+        """回傳缺口時段「結束時間」的 Unix 秒數（台灣時間），供 API to 參數使用。"""
+        try:
+            y, m, d = [int(x) for x in gap_date.split('-')]
+            if gap_session == 'day_session':
+                # 日盤 08:45~13:45 → 抓到 14:00 為止
+                end = datetime(y, m, d, 14, 0, 0, tzinfo=tw)
+            elif gap_session == 'night_late':
+                # 夜盤後段 15:00~23:55 → 抓到隔日 00:00 為止
+                end = datetime(y, m, d, 23, 59, 59, tzinfo=tw)
+            elif gap_session == 'night_early':
+                # 夜盤前段 00:00~04:55（日曆日為 gap_date）→ 抓到 06:00 為止
+                end = datetime(y, m, d, 6, 0, 0, tzinfo=tw)
+            else:
+                return 0
+            return int(end.timestamp())
+        except Exception:
+            return 0
+    
     # =========================================================================
     # 防呆：資料缺口檢查與修復
     # =========================================================================
@@ -250,6 +269,7 @@ class DataScheduler:
         
         fixed_count = 0
         remaining_gaps = []
+        tw = timezone(timedelta(hours=8))
         
         for gap in gaps:
             gap_date = gap['date']
@@ -257,15 +277,12 @@ class DataScheduler:
             
             # 根據缺口時段過濾 API 資料
             if gap_session == 'night_early':
-                # 00:00~04:55
                 mask = (api_data['date'] == gap_date) & (api_data['datetime'].dt.hour < 6)
             elif gap_session == 'day_session':
-                # 08:45~13:45
                 mask = (api_data['date'] == gap_date) & \
                        (api_data['datetime'].dt.hour >= 8) & \
                        (api_data['datetime'].dt.hour < 14)
             elif gap_session == 'night_late':
-                # 15:00~23:55
                 mask = (api_data['date'] == gap_date) & (api_data['datetime'].dt.hour >= 15)
             else:
                 remaining_gaps.append(gap)
@@ -273,10 +290,27 @@ class DataScheduler:
             
             fill_data = api_data[mask].copy()
             
+            # 當次 API 沒有該時段時，用「指定結束時間」再抓一次（涵蓋該日早盤等）
             if fill_data.empty:
-                self._log(f"  {gap_date} {gap_session}: API 中無對應資料，無法修復")
-                remaining_gaps.append(gap)
-                continue
+                to_ts = self._gap_end_timestamp(gap_date, gap_session, tw)
+                if to_ts:
+                    self._log(f"  {gap_date} {gap_session}: 當次 API 無資料，改以 to_ts={to_ts} 重抓...")
+                    extra = self.fetcher.fetch_raw(to_ts=to_ts)
+                    if not extra.empty:
+                        if 'date' not in extra.columns:
+                            extra = extra.copy()
+                            extra['date'] = extra['datetime'].dt.strftime('%Y-%m-%d')
+                        if gap_session == 'night_early':
+                            fill_data = extra[(extra['date'] == gap_date) & (extra['datetime'].dt.hour < 6)].copy()
+                        elif gap_session == 'day_session':
+                            fill_data = extra[(extra['date'] == gap_date) & (extra['datetime'].dt.hour >= 8) & (extra['datetime'].dt.hour < 14)].copy()
+                        else:
+                            fill_data = extra[(extra['date'] == gap_date) & (extra['datetime'].dt.hour >= 15)].copy()
+                
+                if fill_data.empty:
+                    self._log(f"  {gap_date} {gap_session}: 重抓後仍無對應資料，無法修復")
+                    remaining_gaps.append(gap)
+                    continue
             
             # 將補回資料與完整歷史合併，重新計算特徵後存入
             db_data = self.db.load_ohlcv(days=5)

@@ -28,14 +28,18 @@ class DataFetcher:
         self.timeout = API_CONFIG['timeout']
         self.headers = API_CONFIG['headers']
     
-    def fetch_raw(self) -> pd.DataFrame:
+    def fetch_raw(self, to_ts: Optional[int] = None) -> pd.DataFrame:
         """
-        從鉅亨網 API 抓取原始 OHLCV 資料
+        從鉅亨網 API 抓取原始 OHLCV 資料。
+        
+        Args:
+            to_ts: 可選，指定「結束時間」的 Unix 秒數；不傳則用現在，用於補歷史缺口。
         
         Returns:
             包含 OHLCV 資料的 DataFrame
         """
-        to_ts = int(datetime.now().timestamp())
+        if to_ts is None:
+            to_ts = int(datetime.now().timestamp())
         params = {
             "symbol": self.symbol,
             "resolution": self.resolution,

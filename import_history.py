@@ -123,10 +123,13 @@ def import_csv(csv_path: str):
 
 
 if __name__ == "__main__":
-    csv_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "260207_history.csv")
+    default_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "260207_history.csv")
+    csv_file = sys.argv[1] if len(sys.argv) > 1 else default_csv
     
     if not os.path.exists(csv_file):
         print(f"找不到檔案: {csv_file}")
+        print("用法: python import_history.py [CSV路徑]")
+        print("  未指定時使用專案目錄下的 260207_history.csv")
         sys.exit(1)
     
     import_csv(csv_file)

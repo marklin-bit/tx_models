@@ -222,6 +222,17 @@ def get_time_period_class(dt_val):
     return 'time-gray'
 
 
+def is_silent_period_for_line(dt_val):
+    """粉紅時段或 00:00~06:00 不發送進場 LINE 通知（即使有訊號也不傳）"""
+    if not isinstance(dt_val, (datetime, pd.Timestamp)):
+        return False
+    t_min = dt_val.hour * 60 + dt_val.minute
+    # 00:00~06:00 不發送
+    if 0 <= t_min < 6 * 60:
+        return True
+    return get_time_period_class(dt_val) == 'time-pink'
+
+
 # 指示燈閾值設定 (A-F 個別指標)
 INDICATOR_CHECKS = [
     ('Engulfing_Strength', 1.3, 'both'),   # A
@@ -341,17 +352,29 @@ def format_signal_cell(prob, sig_type='entry'):
 
 
 def build_signal_table_html(day_df, preds_df, show_exit_long=False, show_exit_short=False):
-    """建構訊號表格 HTML（含每列4個指示燈）"""
+    """建構訊號表格 HTML（含每列4個指示燈），依時間由早到晚排序"""
     html = '<div class="table-container"><table class="signal-table">'
-    html += '<thead><tr><th>時間</th><th>收盤</th><th>燈號</th><th>多買進</th><th>空買進</th><th>多賣出</th><th>空賣出</th></tr></thead>'
+    html += '<thead><tr><th>日期</th><th>時間</th><th>收盤</th><th>燈號</th><th>多買進</th><th>空買進</th><th>多賣出</th><th>空賣出</th></tr></thead>'
     html += '<tbody>'
     
-    # 反轉順序（最新在上）
-    indices = list(day_df.index)[::-1]
+    # 依時間升序：用 datetime 排序（與 DB 一致），不改變 index 以對應 preds_df
+    if day_df.empty:
+        indices = []
+    elif 'datetime' in day_df.columns:
+        indices = day_df.sort_values('datetime', ascending=True).index.tolist()
+    elif 'timestamp' in day_df.columns:
+        indices = day_df.sort_values('timestamp', ascending=True).index.tolist()
+    else:
+        indices = list(day_df.index)
     
     for idx in indices:
         row = day_df.loc[idx]
         dt_val = row.get('datetime')
+        if pd.notna(dt_val):
+            date_str = dt_val.strftime('%Y-%m-%d')
+        else:
+            d = row.get('date')
+            date_str = d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') and pd.notna(d) else (str(d)[:10] if pd.notna(d) else '--')
         time_str = dt_val.strftime('%H:%M') if pd.notna(dt_val) else '--:--'
         close_val = f"{row['close']:.0f}" if pd.notna(row.get('close')) else '-'
         
@@ -378,6 +401,7 @@ def build_signal_table_html(day_df, preds_df, show_exit_long=False, show_exit_sh
         sx_cell = format_signal_cell(sx, "exit") if show_exit_short else no_sig
         
         html += f'<tr class="{time_class}">'
+        html += f'<td>{date_str}</td>'
         html += f'<td>{time_str}</td>'
         html += f'<td>{close_val}</td>'
         html += f'<td>{lights_html}</td>'
@@ -631,7 +655,7 @@ def fetch_and_process_data(components):
 
 
 def get_day_data(full_df, target_date_str):
-    """從完整資料中篩選指定日期"""
+    """從完整資料中篩選指定日期，並依時間升序排序（datetime 優先）"""
     if full_df.empty or 'datetime' not in full_df.columns:
         return pd.DataFrame()
     
@@ -639,6 +663,9 @@ def get_day_data(full_df, target_date_str):
     full_df_copy['_date'] = full_df_copy['datetime'].dt.strftime('%Y-%m-%d')
     day_df = full_df_copy[full_df_copy['_date'] == target_date_str].copy()
     day_df = day_df.drop(columns=['_date'], errors='ignore')
+    if not day_df.empty:
+        sort_col = 'datetime' if 'datetime' in day_df.columns else 'timestamp'
+        day_df = day_df.sort_values(sort_col, ascending=True).reset_index(drop=True)
     return day_df
 
 
@@ -657,7 +684,8 @@ def load_history_data(components, target_date):
             for f in FEATURE_NAMES
         )
         if features_complete:
-            return day_data
+            sort_col = 'datetime' if 'datetime' in day_data.columns else 'timestamp'
+            return day_data.sort_values(sort_col, ascending=True).reset_index(drop=True)
     
     # 若有任何特徵 NULL，載入完整歷史重新計算
     # 使用 5 天完整資料確保 lookback 足夠（SMA20, CCI20, ADX14 等需要）
@@ -669,6 +697,9 @@ def load_history_data(components, target_date):
     processed['_date'] = processed['datetime'].dt.strftime('%Y-%m-%d')
     result = processed[processed['_date'] == target_date].copy()
     result = result.drop(columns=['_date'], errors='ignore')
+    if not result.empty:
+        sort_col = 'datetime' if 'datetime' in result.columns else 'timestamp'
+        result = result.sort_values(sort_col, ascending=True).reset_index(drop=True)
     
     # 重算後存回 DB，修復 NULL 特徵（只存該日期的資料，避免覆寫其他日期）
     if not result.empty:
@@ -908,12 +939,14 @@ def display_signal_section(day_df, components, section_key="today"):
                 feat_dict = {f: float(conf_row.get(f, 0)) if pd.notna(conf_row.get(f)) else 0.0 for f in FEATURE_NAMES}
                 row_lights = calc_row_lights(feat_dict)
                 ts_key = int(conf_row['timestamp']) if pd.notna(conf_row.get('timestamp')) else None
-                line_notifier.check_and_notify(
-                    time_str=t_str, close=close_val,
-                    lights=row_lights,
-                    long_entry_prob=le_prob, short_entry_prob=se_prob,
-                    timestamp_key=ts_key,
-                )
+                # 粉紅時段或 00:00~06:00 不發送進場 LINE
+                if not is_silent_period_for_line(dt_val):
+                    line_notifier.check_and_notify(
+                        time_str=t_str, close=close_val,
+                        lights=row_lights,
+                        long_entry_prob=le_prob, short_entry_prob=se_prob,
+                        timestamp_key=ts_key,
+                    )
     
     # 訊號表格（含每列指示燈）
     st.markdown("#### 訊號紀錄")
